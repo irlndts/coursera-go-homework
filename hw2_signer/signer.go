@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,56 +25,49 @@ func ExecutePipeline(jobs ...job) {
 
 func worker(waiter *sync.WaitGroup, j job, in, out chan interface{}) {
 	defer waiter.Done()
+	defer close(out)
 	j(in, out)
+	runtime.Gosched()
 }
 
 func SingleHash(in, out chan interface{}) {
-	for {
-		for input := range in {
-			value, ok := input.(int)
-			if !ok {
-				panic("sh: failed type assertion")
-			}
-			data := strconv.Itoa(value)
-			result := DataSignerCrc32(data) + "~" + DataSignerCrc32(DataSignerMd5(data))
-			fmt.Println(result)
-			out <- result
+	for input := range in {
+		value, ok := input.(int)
+		if !ok {
+			panic("sh: failed type assertion")
 		}
+		data := strconv.Itoa(value)
+		result := DataSignerCrc32(data) + "~" + DataSignerCrc32(DataSignerMd5(data))
+		out <- result
 	}
 }
 
 func MultiHash(in, out chan interface{}) {
-	for {
-		for input := range in {
-			data, ok := input.(string)
-			if !ok {
-				panic("mh: failed type assertion")
-			}
-			var result string
-			for th := 0; th < 6; th++ {
-				result += DataSignerCrc32(strconv.Itoa(th) + data)
-			}
-			fmt.Println(result)
-			out <- result
+	for input := range in {
+		data, ok := input.(string)
+		if !ok {
+			panic("mh: failed type assertion")
 		}
+		var result string
+		for th := 0; th < 6; th++ {
+			result += DataSignerCrc32(strconv.Itoa(th) + data)
+		}
+		out <- result
 	}
 }
 
 func CombineResults(in, out chan interface{}) {
-	for {
-		fmt.Println("#####")
-		var hashes []string
-		for input := range in {
-			data, ok := input.(string)
-			if !ok {
-				panic("cr: failed type assertion")
-			}
-			hashes = append(hashes, data)
+	var hashes []string
+	for input := range in {
+		data, ok := input.(string)
+		if !ok {
+			panic("cr: failed type assertion")
 		}
-		sort.Strings(hashes)
 
-		result := strings.Join(hashes, "_")
-		fmt.Println("Combine:", result)
-		out <- result
+		hashes = append(hashes, data)
 	}
+	sort.Strings(hashes)
+
+	result := strings.Join(hashes, "_")
+	out <- result
 }
