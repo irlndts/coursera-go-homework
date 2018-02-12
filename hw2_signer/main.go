@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 func main() {
@@ -26,7 +27,10 @@ func main() {
 		}),
 	}
 
+	start := time.Now()
 	ExecutePipeline(hashSignJobs...)
+	end := time.Now().Sub(start)
 
 	fmt.Println(testResult)
+	fmt.Println(end)
 }
