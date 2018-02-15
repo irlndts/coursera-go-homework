@@ -7,13 +7,9 @@ import (
 	"io"
 	"os"
 	"strings"
-)
 
-type User struct {
-	Browsers []string `json:"browsers"`
-	Email    string   `json:"email"`
-	Name     string   `json:"name"`
-}
+	"github.com/irlndts/coursera-go-homework/hw3_bench/json"
+)
 
 func FastSearch(out io.Writer) {
 	file, err := os.Open(filePath)
@@ -29,7 +25,7 @@ func FastSearch(out io.Writer) {
 	seenBrowsers := make(map[string]bool)
 
 	index := -1
-	user := &User{}
+	user := &myjson.User{}
 	var isAndroid, isMSIE bool
 	var email string
 
@@ -47,10 +43,14 @@ func FastSearch(out io.Writer) {
 		for _, browser := range user.Browsers {
 			if strings.Contains(browser, "Android") {
 				isAndroid = true
-				seenBrowsers[browser] = true
+				if !seenBrowsers[browser] {
+					seenBrowsers[browser] = true
+				}
 			} else if strings.Contains(browser, "MSIE") {
 				isMSIE = true
-				seenBrowsers[browser] = true
+				if !seenBrowsers[browser] {
+					seenBrowsers[browser] = true
+				}
 			}
 		}
 
@@ -58,7 +58,7 @@ func FastSearch(out io.Writer) {
 			continue
 		}
 
-		email = strings.Replace(user.Email, "@", " [at] ", -1)
+		email = strings.Replace(user.Email, "@", " [at] ", 1)
 		fmt.Fprintf(out, "[%d] %s <%s>\n", index, user.Name, email)
 	}
 
