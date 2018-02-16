@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
@@ -28,6 +29,12 @@ type User struct {
 	Name     string   `json:"name"`
 }
 
+var userPool = sync.Pool{
+	New: func() interface{} {
+		return []byte{}
+	},
+}
+
 func FastSearch(out io.Writer) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY, 0400)
 	if err != nil {
@@ -36,30 +43,16 @@ func FastSearch(out io.Writer) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	if err != nil {
-		panic(err)
-	}
 
-	seenBrowsers := make(map[string]bool)
-
-	/*
-		var dataPool = sync.Pool{
-			New: func() interface{} {
-				return &User{}
-			},
-		}
-	*/
-
-	index := -1
+	seenBrowsers := make(map[string]bool, 114)
+	var index uint16
 	var isAndroid, isMSIE bool
 	var email string
-
-	user := &User{}
+	var user User
 
 	fmt.Fprintln(out, "found users:")
 	for scanner.Scan() {
-		index++
-		err := json.Unmarshal(scanner.Bytes(), &user)
+		err := user.UnmarshalJSON(scanner.Bytes())
 		if err != nil {
 			panic(err)
 		}
@@ -70,25 +63,30 @@ func FastSearch(out io.Writer) {
 		for _, browser := range user.Browsers {
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
-				seenBrowsers[browser] = true
+				if !seenBrowsers[browser] {
+					seenBrowsers[browser] = true
+				}
 			} else if strings.Contains(browser, "Android") {
 				isAndroid = true
-				seenBrowsers[browser] = true
+				if !seenBrowsers[browser] {
+					seenBrowsers[browser] = true
+				}
 			}
 		}
 
+		index++
 		if !(isAndroid && isMSIE) {
 			continue
 		}
 
 		email = strings.Replace(user.Email, "@", " [at] ", 1)
-		fmt.Fprintf(out, "[%d] %s <%s>\n", index, user.Name, email)
+		fmt.Fprintf(out, "[%d] %s <%s>\n", index-1, user.Name, email)
 	}
 
-	fmt.Fprintln(out, "\nTotal unique browsers", len(seenBrowsers))
+	fmt.Fprintf(out, "\nTotal unique browsers %d\n", len(seenBrowsers))
 }
 
-func easyjson3486653aDecodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(in *jlexer.Lexer, out *User) {
+func Decode(in *jlexer.Lexer, out *User) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -144,7 +142,7 @@ func easyjson3486653aDecodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(in *jlexer
 		in.Consumed()
 	}
 }
-func easyjson3486653aEncodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(out *jwriter.Writer, in User) {
+func Encode(out *jwriter.Writer, in User) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -195,23 +193,23 @@ func easyjson3486653aEncodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(out *jwrit
 // MarshalJSON supports json.Marshaler interface
 func (v User) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson3486653aEncodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(&w, v)
+	Encode(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v User) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson3486653aEncodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(w, v)
+	Encode(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *User) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson3486653aDecodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(&r, v)
+	Decode(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *User) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson3486653aDecodeGithubComIrlndtsCourseraGoHomeworkHw3Bench(l, v)
+	Decode(l, v)
 }
