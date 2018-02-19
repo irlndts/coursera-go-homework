@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
@@ -27,12 +26,6 @@ type User struct {
 	Browsers []string `json:"browsers"`
 	Email    string   `json:"email"`
 	Name     string   `json:"name"`
-}
-
-var userPool = sync.Pool{
-	New: func() interface{} {
-		return []byte{}
-	},
 }
 
 func FastSearch(out io.Writer) {
